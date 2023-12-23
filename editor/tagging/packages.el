@@ -1,8 +1,0 @@
-(package! helm)
-(package! dash)
-(package! org)
-(package! evil)
-(package! hydra)
-(package! cl-lib :built-in t)
-(package! ivy)
-(package! librarian-tagging-helm :recipe (:host github :repo "jgrey4296/misc-modes" :files ("minor-modes/librarian-tagging-helm/*.el") :local-repo "misc-modes"))

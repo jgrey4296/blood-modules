@@ -1,0 +1,253 @@
+;;; lang/org/config.el -*- lexical-binding: t; -*-
+(package! org
+  :recipe (:host github
+           ;; REVIEW: I intentionally avoid git.savannah.gnu.org because of SSL
+           ;;   issues (see #5655), uptime issues, download time, and lack of
+           ;;   shallow clone support.
+           :repo "emacs-straight/org-mode"
+           :files (:defaults "etc")
+           :depth 1
+           ;; HACK: Org has a post-install step that generates org-version.el
+           ;;   and org-loaddefs.el, but Straight doesn't invoke this step, and
+           ;;   the former doesn't work if the Org repo is a shallow clone.
+           ;;   Rather than impose the network burden of a full clone (and other
+           ;;   redundant work in Org's makefile), I'd rather fake these files
+           ;;   instead. Besides, Straight already produces a org-autoloads.el,
+           ;;   so org-loaddefs.el isn't needed.
+           :build t
+           :pre-build
+           (progn
+             (with-temp-file "org-loaddefs.el"
+               (insert "(provide 'org-loaddefs)")
+               )
+             (with-temp-file "org-version.el"
+               (let ((version
+                      (with-temp-buffer
+                        (insert-file-contents (doom-path "lisp/org.el") nil 0 1024)
+                        (if (re-search-forward "^;; Version: \\([^\n-]+\\)" nil t)
+                            (match-string-no-properties 1)
+                          "Unknown"))))
+                 (insert (format "(defun org-release () %S)\n" version)
+                         (format "(defun org-git-version (&rest _) \"%s-??-%s\")\n"
+                                 version (cdr (doom-call-process "git" "rev-parse" "--short" "HEAD")))
+                         "(provide 'org-version)\n")))))
+ )
+(package! org-contrib :recipe (:host github :repo "emacsmirror/org-contrib"))
+
+(package! org-unit-test :recipe (:host github :repo "jgrey4296/misc-modes" :files ("minor-mode/org-unit-test/*.el")))
+
+
+(package! org-drill)
+(package! org-pomodoro)
+(package! org-projectile)
+(package! org-superstar)
+(package! outline-toc)
+(package! link-hint)
+(package! graphviz-dot-mode)
+
+(package! avy)
+(package! htmlize)
+(package! org-yt :recipe (:host github :repo "TobiasZawada/org-yt"))
+(package! ox-clip)
+(package! toc-org)
+(package! org-cliplink)
+
+;; TODO Adjust when this is added to GNU ELPA
+(package! org-contacts :recipe (:host nil :type git :repo "https://repo.or.cz/org-contacts.git"))
+
+(when (and IS-MAC (modulep! :os macos)) (package! org-mac-link))
+
+(package! org-passwords :recipe (:host github :repo "alfaromurillo/org-passwords.el"))
+
+(package! evil-org :recipe (:host github :repo "hlissner/evil-org-mode"))
+(package! orgit)
+(package! orgit-forge)
+(package! org-brain)
+(package! gnuplot)
+(package! gnuplot-mode)
+(package! org-journal)
+(package! org-noter)
+(package! org-appear)
+(package! org-fancy-priorities)
+(package! centered-window :recipe (:host github :repo "anler/centered-window-mode"))
+(package! org-tree-slide)
+
+;;; Babel
+(package! ob-async)
+(package! ob-elixir)
+(package! ob-fsharp :recipe (:host github :repo "elken/ob-fsharp"))
+(package! ob-graphql)
+(package! ob-racket :recipe (:host github :repo "DEADB17/ob-racket"))
+(package! ob-restclient)
+(package! ob-ammonite)
+
+;;; Export
+(package! ox-pandoc)
+(package! ox-hugo :recipe (:host github :repo "kaushalmodi/ox-hugo" :nonrecursive t))
+(package! ox-rst)
+(package! ox-epub :recipe (:host github :repo "jgrey4296/misc-modes" :files ("ox-epub/*.el") :local-repo "misc-modes"))
+
+(local-load! "+definitions")
+(local-load! "+vars")
+
+(defer-load! jg-bindings-core "+bindings")
+(defer-load! jg-evil-ex-bindings "+evil-ex")
+
+(use-package! org
+  :defer-incrementally
+  calendar find-func format-spec org-macs org-compat org-faces org-entities
+  org-list org-pcomplete org-src org-footnote org-macro ob org org-agenda
+  org-capture
+  :preface
+  ;;; Custom org modules
+  (dolist (flag (doom-module-context-get 'flags))
+    (load! (concat "contrib/" (substring (symbol-name flag) 1)) nil t))
+
+  ;; Add our general hooks after the submodules, so that any hooks the
+  ;; submodules add run after them, and can overwrite any defaults if necessary.
+  (add-hook! 'org-mode-hook
+             ;; `show-paren-mode' causes flickering with indent overlays made by
+             ;; `org-indent-mode', so we turn off show-paren-mode altogether
+             #'doom-disable-show-paren-mode-h
+             ;; disable `show-trailing-whitespace'; shows a lot of false positives
+             #'doom-disable-show-trailing-whitespace-h
+             ;; #'+org-enable-auto-reformat-tables-h
+             ;; #'+org-enable-auto-update-cookies-h
+             #'+org-make-last-point-visible-h)
+
+  (add-hook! 'org-load-hook
+             #'+org-init-org-directory-h
+             #'+org-init-appearance-h
+             #'+org-init-agenda-h
+             #'+org-init-attachments-h
+             #'+org-init-babel-h
+             #'+org-init-babel-lazy-loader-h
+             #'+org-init-capture-defaults-h
+             #'+org-init-capture-frame-h
+             #'+org-init-custom-links-h
+             #'+org-init-export-h
+             #'+org-init-habit-h
+             #'+org-init-hacks-h
+             #'+org-init-smartparens-h
+             #'+org-init-keybinds-h
+             )
+
+  (after! org-protocol
+    (advice-remove 'server-visit-files #'org--protocol-detect-protocol-server))
+
+  ;; In case the user has eagerly loaded org from their configs
+  (when (and (featurep 'org)
+             (not byte-compile-current-file))
+    (unless (doom-context-p 'reload)
+      (message "`org' was already loaded by the time lang/org loaded, this may cause issues"))
+    (run-hooks 'org-load-hook))
+
+  :config
+  (add-to-list 'doom-debug-variables 'org-export-async-debug)
+
+  ;; Don't number headings with these tags
+  (setq org-num-face '(:inherit org-special-keyword :underline nil :weight bold)
+        org-num-skip-tags '("noexport" "nonum"))
+
+  ;; Prevent modifications made in invisible sections of an org document, as
+  ;; unintended changes can easily go unseen otherwise.
+  (setq org-catch-invisible-edits 'smart)
+
+  ;; Global ID state means we can have ID links anywhere. This is required for
+  ;; `org-brain', however.
+  (setq org-id-locations-file-relative t)
+
+
+  (add-hook 'org-open-at-point-functions #'doom-set-jump-h)
+  ;; HACK For functions that dodge `org-open-at-point-functions', like
+  ;;   `org-id-open', `org-goto', or roam: links.
+  (advice-add #'org-mark-ring-push :around #'doom-set-jump-a)
+
+  ;; Add the ability to play gifs, at point or throughout the buffer. However,
+  ;; 'playgifs' is stupid slow and there's not much I can do to fix it; use at
+  ;; your own risk.
+  (add-to-list 'org-startup-options '("inlinegifs" +org-startup-with-animated-gifs at-point))
+  (add-to-list 'org-startup-options '("playgifs"   +org-startup-with-animated-gifs t))
+  (add-hook! 'org-mode-local-vars-hook #'+org-init-gifs-h)
+
+  )
+
+(use-package! toc-org ; auto-table of contents
+  :commands toc-org-enable
+  :hook (org-mode . toc-org-enable)
+  :config
+  (setq toc-org-hrefify-default "gh")
+  )
+
+(use-package! org-crypt ; built-in
+  :commands org-encrypt-entries org-encrypt-entry org-decrypt-entries org-decrypt-entry
+  :hook (org-reveal-start . org-decrypt-entry)
+  :preface
+  (after! org
+    (add-to-list 'org-tags-exclude-from-inheritance "crypt")
+    (add-hook! 'org-mode-hook
+      (add-hook 'before-save-hook 'org-encrypt-entries nil t))))
+
+(use-package! org-clock ; built-in
+  :commands org-clock-save
+  :init
+  (setq org-clock-persist-file (concat doom-data-dir "org-clock-save.el"))
+  (defadvice! +org--clock-load-a (&rest _)
+    "Lazy load org-clock until its commands are used."
+    :before '(org-clock-in
+              org-clock-out
+              org-clock-in-last
+              org-clock-goto
+              org-clock-cancel)
+    (org-clock-load))
+  :config
+  (setq org-clock-persist 'history
+        ;; Resume when clocking into task with open clock
+        org-clock-in-resume t
+        ;; Remove log if task was clocked for 0:00 (accidental clocking)
+        org-clock-out-remove-zero-time-clocks t
+        ;; The default value (5) is too conservative.
+        org-clock-history-length 20)
+  (add-hook 'kill-emacs-hook #'org-clock-save))
+
+(use-package! evil-org
+  :hook (org-mode . evil-org-mode)
+  :hook (org-capture-mode . evil-insert-state)
+  :hook (doom-docs-org-mode . evil-org-mode)
+  :config
+  (add-hook 'evil-org-mode-hook #'evil-normalize-keymaps)
+  (evil-org-set-key-theme)
+  (add-hook! 'org-tab-first-hook :append
+             ;; Only fold the current tree, rather than recursively
+             #'+org-cycle-only-current-subtree-h
+             ;; Clear babel results if point is inside a src block
+             #'+org-clear-babel-results-h)
+)
+
+(use-package! evil-org-agenda
+  :hook (org-agenda-mode . evil-org-agenda-mode)
+  :config
+  (evil-org-agenda-set-keys)
+  (evil-define-key* 'motion evil-org-agenda-mode-map
+    (kbd doom-leader-key) nil))
+
+(use-package! link-hint
+  :config
+  ;; override default org link to open externally sometimes
+  (link-hint-define-type 'org-link
+    :next #'link-hint--next-org-link
+    :at-point-p #'link-hint--org-link-at-point-p
+    :vars '(org-mode org-agenda-mode org-link-minor-mode)
+    :open #'+jg-org-link-hint-external
+    :open-multiple t
+    :copy #'kill-new)
+  (push 'org-link link-hint-types)
+  )
+
+(use-package! org-unit-test
+  :commands org-unit-test-minor-mode
+  )
+
+(use-package! ox-epub
+  :after org
+  )
