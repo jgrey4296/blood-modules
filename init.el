@@ -6,47 +6,19 @@
 
 ;; Profile declarations with module activations:
 (blood! :profile basic :default t
-        :modules-from ("./example")
+        :modules-from ("./")
         ;; :install-to  nil
         ;; :build-to nil
         ;; :disallow (mod-feature keybindings)
-        :on-activation ((message "blah"))
+        :on-activation ((message "Basic Profile"))
         :active-modules:
-        :config bindings default disabled help linux mac search ui windows
-        :editor autosave buffer-nave evil fold large-files tagging text-manipulation undo window-nav
-        :ide company debugger diff librarian minimap snippets support version-control workspaces
-        :tools calendar dired eval mail pdfs processes term
+        :config default default disabled help search ui
+        :editor buffer-nav evil text-manipulation undo window-nav
+        :tools dired
         :ui helm hydra ibuffer ivy minibuffer ophints popup
-
-        :lang-text bibtex inform latex markdown org plantuml rst web
-        :lang-data csv dot graphql json logs nu sql toml xml yaml
-        :lang-dsl acab ai-and-logic music nix qt rest sh
-        :lang-strongly-typed coq dotnet-langs fstar haskell idris jvm-langs lean ml-langs rust
-        :lang-weakly-typed erlang-vms godot lisp-langs lua python ruby
-
-        :experimentation agda ess fortran ivy-experiments julia ledger multi-cursor open-policy-agent org-brain solidity taskrunners vertico
+        :lang-weakly-typed lisp-langs
   )
 
-(blood! :profile quick :disabled nil
-        :package-installation "quick"
-        :active-modules:
-        :config bindings default disabled help linux mac search ui windows
-        :editor autosave buffer-nave evil fold large-files tagging text-manipulation undo window-nav
-        :ide company debugger diff librarian minimap snippets support version-control workspaces
-        :tools calendar dired eval mail pdfs processes term
-        :ui helm hydra ibuffer ivy minibuffer ophints popup
-  )
-
-
-(ilog! "")
-(ghlog! "Current Variable Assignments")
-(dolist (loc '(native-comp-eln-load-path data-directory doc-directory exec-directory
-	       installation-directory invocation-directory invocation-name source-directory
-               shared-game-score-directory noninteractive blood--cmd
-               ))
-  (ilog! "%-30s : %s" (symbol-name loc) (symbol-value loc))
-  )
-(glogx!)
 
 (add-hook 'after-init-hook (lambda () (hlog! "Init Loaded, Processing..."))
           (plist-get blood--hook-laziness :bootstrap))

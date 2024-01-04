@@ -1,5 +1,4 @@
 ;;; config.el -*- lexical-binding: t; -*-
-(install! anzu)
 (install! auto-highlight-symbol)
 (install! doom-modeline)
 (install! highlight-indent-guides)
@@ -9,16 +8,12 @@
 (install! rainbow-delimiters)
 (install! rainbow-mode)
 (install! smartparens)
-(install! transient)
 (install! visual-fill-column)
-(install! whitespace)
 (install! paren)
 (install! hide-mode-line)
-(install! fringe :built-in t)
 
 (install! font-lock+       :recipe (:host github :repo "emacsmirror/font-lock-plus"))
 (install! palette-mode     :recipe (:host github :repo "jgrey4296/misc-modes" :files ("major-modes/palette-mode/*.el") :local-repo "misc-modes"))
-(install! transient-macros :recipe (:host github :repo "jgrey4296/transient-macros"))
 
 (install! treemacs)
 (install! treemacs-evil)
@@ -61,8 +56,8 @@
 
 (use! transient)
 
-(use! transient-macros)
+(use! transient-macros :recipe (:host github :repo "jgrey4296/transient-macros"))
 
 ;;-- end transient
 
-(use! fringe)
+(use! fringe :built-in t)

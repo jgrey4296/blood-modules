@@ -1,30 +1,5 @@
 ;;; editor/evil/config.el -*- lexical-binding: t; -*-
 
-(install! evil)
-(install! evil-anzu)
-(install! evil-args)
-(install! evil-easymotion)
-(install! evil-embrace)
-(install! evil-escape :recipe (:host github :repo "jgrey4296/evil-escape-hook"))
-(install! evil-exchange)
-(install! evil-iedit-state)
-(install! evil-indent-plus)
-(install! evil-lion)
-(install! evil-nerd-commenter)
-(install! evil-numbers)
-(install! evil-quick-diff :recipe (:host github :repo "rgrinberg/evil-quick-diff"))
-(install! evil-quickscope)
-(install! evil-snipe)
-(install! evil-string-inflection)
-(install! evil-surround)
-(install! evil-textobj-anyblock :recipe (:host github :repo "willghatch/evil-textobj-anyblock" :branch "fix-inner-block"))
-(install! evil-traces)
-(install! evil-visual-mark-mode)
-(install! evil-visualstar)
-(install! evil-textobj-tree-sitter)
-(install! exato)
-
-(install! evil-collection)
 (local-load! "+defs")
 (local-load! "+vars")
 (local-load! "+spec-defs")
@@ -34,189 +9,71 @@
 (defer-load! jg-bindings-core "+bindings") ;; -> jg-evil-bindings
 
 (use! evil
-  :hook (doom-after-modules-config . evil-mode)
-  :demand t
-  :preface
-  ;; Slow this down from 0.02 to prevent blocking in large or folded buffers
-  ;; like magit while incrementally highlighting matches.
-  (setq-hook! '(magit-mode-hook so-long-minor-mode-hook)
-    evil-ex-hl-update-delay 0.25)
+      :recipe      'melpa
+      :autoloads   '(evil-mode)
+      :pre-load ((message "Prior to loading evil")
+                 (setq-hook! '(magit-mode-hook so-long-minor-mode-hook) evil-ex-hl-update-delay 0.25)
+                 )
+      :advice ()
+      :hooks ()
+      :post-load ((message "evil has loaded from: %s" (dir!))
+                  (evil-mode 1)
+                  (evil-ex-define-cmd "q[uit]" #'evil-quit-all)
+                  (evil-select-search-module 'evil-search-module 'evil-search)
+                  ;; Forward declare these so that ex completion works, even if the autoloaded
+                  ;; functions aren't loaded yet.
+                  (evil-add-command-properties '+evil:align :ex-arg 'regexp-match)
+                  (evil-add-command-properties '+evil:align-right :ex-arg 'regexp-match)
+                  (evil-add-command-properties '+multiple-cursors:evil-mc :ex-arg 'regexp-global-match)
 
-  :config
-  (evil-select-search-module 'evil-search-module 'evil-search)
-  ;; Forward declare these so that ex completion works, even if the autoloaded
-  ;; functions aren't loaded yet.
-  (evil-add-command-properties '+evil:align :ex-arg 'regexp-match)
-  (evil-add-command-properties '+evil:align-right :ex-arg 'regexp-match)
-  (evil-add-command-properties '+multiple-cursors:evil-mc :ex-arg 'regexp-global-match)
+                  ;; Allow eldoc to trigger directly after changing modes
+                  (after! eldoc (eldoc-add-command 'evil-normal-state 'evil-insert 'evil-change 'evil-delete 'evil-replace))
+                  (unless noninteractive (add-hook! 'after-save-hook #'+evil-display-vimlike-save-message-h))
 
-    ;; Allow eldoc to trigger directly after changing modes
-  (after! eldoc (eldoc-add-command 'evil-normal-state 'evil-insert 'evil-change 'evil-delete 'evil-replace))
-  (unless noninteractive (add-hook! 'after-save-hook #'+evil-display-vimlike-save-message-h))
+                  ;; PERF: Stop copying the selection to the clipboard each time the cursor
+                  ;; moves in visual mode. Why? Because on most non-X systems (and in terminals
+                  ;; with clipboard plugins like xclip.el active), Emacs will spin up a new
+                  ;; process to communicate with the clipboard for each movement. On Windows,
+                  ;; older versions of macOS (pre-vfork), and Waylang (without pgtk), this is
+                  ;; super expensive and can lead to freezing and/or zombie processes.
+                  ;;
+                  ;; UX: It also clobbers clipboard managers (see emacs-evil/evil#336).
+                  (setq evil-visual-update-x-selection-p nil)
 
-  ;; PERF: Stop copying the selection to the clipboard each time the cursor
-  ;; moves in visual mode. Why? Because on most non-X systems (and in terminals
-  ;; with clipboard plugins like xclip.el active), Emacs will spin up a new
-  ;; process to communicate with the clipboard for each movement. On Windows,
-  ;; older versions of macOS (pre-vfork), and Waylang (without pgtk), this is
-  ;; super expensive and can lead to freezing and/or zombie processes.
-  ;;
-  ;; UX: It also clobbers clipboard managers (see emacs-evil/evil#336).
-  (setq evil-visual-update-x-selection-p nil)
+                  (add-hook 'doom-load-theme-hook           #'+evil-update-cursor-color-h)
+                  (add-hook 'doom-after-modules-config-hook #'+evil-update-cursor-color-h)
+                  (add-hook 'evil-insert-state-entry-hook   #'delete-selection-mode)
+                  (add-hook 'evil-insert-state-exit-hook    #'+default-disable-delete-selection-mode-h)
+                  (add-hook 'doom-escape-hook               #'+evil-disable-ex-highlights-h)
+                  ;; (add-hook 'evil-local-mode-hook           #'+jg-evil--auto-marks-h)
 
-  (add-hook 'doom-load-theme-hook           #'+evil-update-cursor-color-h)
-  (add-hook 'doom-after-modules-config-hook #'+evil-update-cursor-color-h)
-  (add-hook 'evil-insert-state-entry-hook   #'delete-selection-mode)
-  (add-hook 'evil-insert-state-exit-hook    #'+default-disable-delete-selection-mode-h)
-  (add-hook 'doom-escape-hook               #'+evil-disable-ex-highlights-h)
-  ;; (add-hook 'evil-local-mode-hook           #'+jg-evil--auto-marks-h)
+                  ;; Lazy load evil ex commands
+                  (delq! 'evil-ex features)
+                  (add-transient-hook! 'evil-ex (provide 'evil-ex))
+                  )
+      :bind ((:map 'evil-mode-map
+              :n "x" #'blah
+              :v "y" #'bloo
+              )
+             (:map 'evil-normal-state-map
 
-  ;; Lazy load evil ex commands
-  (delq! 'evil-ex features)
-  (add-transient-hook! 'evil-ex (provide 'evil-ex))
-  )
-
-(use! evil-easymotion
-  :after-call doom-first-input-hook
-  :commands evilem-create evilem-default-keybindings
-  :config
-  ;; Use evil-search backend, instead of isearch
-  (evilem-make-motion evilem-motion-search-next #'evil-ex-search-next
-                      :bind ((evil-ex-search-highlight-all nil)))
-  (evilem-make-motion evilem-motion-search-previous #'evil-ex-search-previous
-                      :bind ((evil-ex-search-highlight-all nil)))
-  (evilem-make-motion evilem-motion-search-word-forward #'evil-ex-search-word-forward
-                      :bind ((evil-ex-search-highlight-all nil)))
-  (evilem-make-motion evilem-motion-search-word-backward #'evil-ex-search-word-backward
-                      :bind ((evil-ex-search-highlight-all nil)))
-
-  ;; Rebind scope of w/W/e/E/ge/gE evil-easymotion motions to the visible
-  ;; buffer, rather than just the current line.
-  (put 'visible 'bounds-of-thing-at-point (lambda () (cons (window-start) (window-end))))
-  (evilem-make-motion evilem-motion-forward-word-begin #'evil-forward-word-begin :scope 'visible)
-  (evilem-make-motion evilem-motion-forward-WORD-begin #'evil-forward-WORD-begin :scope 'visible)
-  (evilem-make-motion evilem-motion-forward-word-end #'evil-forward-word-end :scope 'visible)
-  (evilem-make-motion evilem-motion-forward-WORD-end #'evil-forward-WORD-end :scope 'visible)
-  (evilem-make-motion evilem-motion-backward-word-begin #'evil-backward-word-begin :scope 'visible)
-  (evilem-make-motion evilem-motion-backward-WORD-begin #'evil-backward-WORD-begin :scope 'visible)
-  (evilem-make-motion evilem-motion-backward-word-end #'evil-backward-word-end :scope 'visible)
-  (evilem-make-motion evilem-motion-backward-WORD-end #'evil-backward-WORD-end :scope 'visible)
-  )
-
-(use! evil-embrace
-  :defer t
-  :hook (LaTeX-mode      . embrace-LaTeX-mode-hook)
-  :hook (org-mode        . embrace-org-mode-hook)
-  :hook (ruby-mode       . embrace-ruby-mode-hook)
-  :hook (emacs-lisp-mode . embrace-emacs-lisp-mode-hook)
-  :config
-  (after! evil-surround (evil-embrace-enable-evil-surround-integration))
-  (spec-handling-new! evil-embrace nil :loop 'hook
-                      ;; TODO
-                      (setq embrace--pairs-list (append val embrace--pairs-list))
-                      )
-
-  ;; Add escaped-sequence support to embrace
-  (setf (alist-get ?\\ (default-value 'embrace--pairs-list))
-        (make-embrace-pair-struct
-         :key ?\\
-         :read-function #'+evil--embrace-escaped
-         :left-regexp "\\[[{(]"
-         :right-regexp "\\[]})]"))
-  )
+                   )
+             )
+      )
 
 (use! evil-escape
-  :commands evil-escape
-  :hook (doom-first-input . evil-escape-mode)
-  )
+      ;; :disabled t
+      :recipe (:host github :repo "jgrey4296/evil-escape-hook")
+      :pre-load (
+                 (setq evil-escape-inhibit-functions nil ;; '(evil-ex-p)
+                       evil-escape-excluded-states '(normal multiedit emacs motion)
+                       evil-escape-excluded-major-modes '(neotree-mode treemacs-mode vterm-mode)
+                       evil-escape-key-sequence "jk"
+                       evil-escape-delay 0.15
+                       )
+                 )
+      :post-load (
+                  (evil-escape-mode)
+                  )
 
-(use! evil-exchange
-  :commands evil-exchange
-  :config
-  (add-hook! 'doom-escape-hook #'+evil--escape-exchange-h)
-  )
-
-(use! evil-quick-diff
-  :commands (evil-quick-diff evil-quick-diff-cancel)
-  )
-
-(use! evil-nerd-commenter
-  :commands (evilnc-comment-operator
-             evilnc-inner-comment
-             evilnc-outer-commenter)
-  :general ([remap comment-line] #'evilnc-comment-or-uncomment-lines))
-
-(use! evil-snipe :defer t)
-
-(use! evil-surround
-  :commands (global-evil-surround-mode
-             evil-surround-edit
-             evil-Surround-edit
-             evil-surround-region)
-  :config (global-evil-surround-mode 1))
-
-(use! evil-textobj-anyblock
-  :defer t
-)
-
-(use! evil-traces
-  :after evil-ex
-  :config
-  (pushnew! evil-traces-argument-type-alist
-            '(+evil:align . evil-traces-global)
-            '(+evil:align-right . evil-traces-global))
-  (evil-traces-mode)
-  )
-
-(use! evil-visualstar
-  :commands (evil-visualstar/begin-search
-             evil-visualstar/begin-search-forward
-             evil-visualstar/begin-search-backward)
-)
-
-(use! evil-quickscope
-  :hook (doom-first-file . global-evil-quickscope-mode)
-  :config
-  (map! :map evil-quickscope-mode-map
-        :nm "t" nil
-        :nm "T" nil
-        )
-  )
-
-(use! evil-iedit-state
-  :defer t
-  :commands (evil-iedit-state evil-iedit-state/iedit-mode)
-  :init
-  (setq iedit-current-symbol-default t
-        iedit-only-at-symbol-boundaries t
-        iedit-toggle-key-default nil)
-
-)
-
-(use! evil-string-inflection
-  :defer t
-  :commands evil-operator-string-inflection
-  )
-
-(use! evil-visual-mark-mode
-  :defer t
-  :hook (prog-mode . evil-visual-mark-mode)
-  )
-
-(use! evil-anzu
-  :when (modulep! :editor evil)
-  :after-call evil-ex-start-search evil-ex-start-word-search evil-ex-search-activate-highlight
-  :config (global-anzu-mode +1)
-  )
-
-(use! evil-textobj-tree-sitter
-  :after (evil tree-sitter which-key)
-  :config
-  (setq which-key-allow-multiple-replacements t)
-  (pushnew! which-key-replacement-alist
-            '(("" . "\\`+?evil-textobj-tree-sitter-function--\\(.*\\)\\(?:.inner\\|.outer\\)") . (nil . "\\1")))
-  )
-
-(use! exato
-  :commands evil-outer-xml-attr evil-inner-xml-attr
-  )
+      )
