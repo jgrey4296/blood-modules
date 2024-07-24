@@ -23,8 +23,7 @@ Buffers that are considered unreal (see `doom-real-buffer-p') are dimmed with
     (when (null uniquify-buffer-name-style)
       (setq candidate (replace-regexp-in-string "<[0-9]+>$" "" candidate)))
     (cond ((ignore-errors
-             (file-remote-p
-              (buffer-local-value 'default-directory b)))
+             (file-remote-p (with-current-buffer b default-directory)))
            (ivy-append-face candidate 'ivy-remote))
           ((doom-unreal-buffer-p b)
            (ivy-append-face candidate +ivy-buffer-unreal-face))
@@ -41,7 +40,7 @@ Buffers that are considered unreal (see `doom-real-buffer-p') are dimmed with
   ;; buffer name and extra padding as those are handled by `ivy-rich'.
   (propertize "\t" 'display
               (if-let* ((buffer (get-buffer candidate))
-                        (mode (buffer-local-value 'major-mode buffer)))
+                        (mode (with-current-buffer buffer major-mode)))
                   (or
                    (all-the-icons-ivy--icon-for-mode mode)
                    (all-the-icons-ivy--icon-for-mode (get mode 'derived-mode-parent))

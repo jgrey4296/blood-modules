@@ -12,7 +12,7 @@
         ;; :disallow (mod-feature keybindings)
         :on-activation ((message "Basic Profile"))
         :active-modules:
-        :config default default disabled help search ui
+        :config default disabled help search ui
         :editor buffer-nav evil text-manipulation undo window-nav
         :tools dired
         :ui helm hydra ibuffer ivy minibuffer ophints popup
